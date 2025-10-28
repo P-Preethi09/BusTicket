@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api/axios';
 import { useTheme } from '../context/ThemeContext';
@@ -45,6 +45,37 @@ const AdminDashboard = () => {
     notifications: 99.9
   });
 
+  // Pagination, Sorting, and Filtering states
+  const [userFilters, setUserFilters] = useState({
+    search: '',
+    role: 'all',
+    status: 'all',
+    sortBy: 'username',
+    sortOrder: 'asc',
+    page: 0,
+    size: 10
+  });
+  const [vehicleFilters, setVehicleFilters] = useState({
+    search: '',
+    operator: 'all',
+    type: 'all',
+    status: 'all',
+    sortBy: 'vehicleNumber',
+    sortOrder: 'asc',
+    page: 0,
+    size: 10
+  });
+  const [routeFilters, setRouteFilters] = useState({
+    search: '',
+    sortBy: 'source',
+    sortOrder: 'asc',
+    page: 0,
+    size: 10
+  });
+  const [userPagination, setUserPagination] = useState({ totalPages: 0, totalElements: 0 });
+  const [vehiclePagination, setVehiclePagination] = useState({ totalPages: 0, totalElements: 0 });
+  const [routePagination, setRoutePagination] = useState({ totalPages: 0, totalElements: 0 });
+
   useEffect(() => {
     const userData = localStorage.getItem('user');
     if (!userData) {
@@ -67,6 +98,121 @@ const AdminDashboard = () => {
     });
     fetchAdminData();
   }, [navigate]);
+
+  // Memoized filtered data to prevent infinite re-renders
+  const filteredUsers = useMemo(() => {
+    let filtered = users.filter(user => {
+      const matchesSearch = !userFilters.search || 
+        user.username?.toLowerCase().includes(userFilters.search.toLowerCase()) ||
+        user.email?.toLowerCase().includes(userFilters.search.toLowerCase());
+      const matchesRole = userFilters.role === 'all' || user.role === userFilters.role;
+      const matchesStatus = userFilters.status === 'all' || 
+        (userFilters.status === 'active' ? user.isActive : !user.isActive);
+      return matchesSearch && matchesRole && matchesStatus;
+    });
+
+    // Sort
+    filtered.sort((a, b) => {
+      const aVal = a[userFilters.sortBy]?.toString().toLowerCase() || '';
+      const bVal = b[userFilters.sortBy]?.toString().toLowerCase() || '';
+      return userFilters.sortOrder === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+    });
+
+    // Paginate
+    const start = userFilters.page * userFilters.size;
+    return filtered.slice(start, start + userFilters.size);
+  }, [users, userFilters]);
+
+  const filteredVehicles = useMemo(() => {
+    let filtered = vehicles.filter(vehicle => {
+      const matchesSearch = !vehicleFilters.search || 
+        vehicle.vehicleNumber?.toLowerCase().includes(vehicleFilters.search.toLowerCase()) ||
+        vehicle.operator?.toLowerCase().includes(vehicleFilters.search.toLowerCase());
+      const matchesOperator = vehicleFilters.operator === 'all' || vehicle.operator === vehicleFilters.operator;
+      const matchesType = vehicleFilters.type === 'all' || vehicle.vehicleType === vehicleFilters.type;
+      return matchesSearch && matchesOperator && matchesType;
+    });
+
+    // Sort
+    filtered.sort((a, b) => {
+      const aVal = a[vehicleFilters.sortBy]?.toString().toLowerCase() || '';
+      const bVal = b[vehicleFilters.sortBy]?.toString().toLowerCase() || '';
+      return vehicleFilters.sortOrder === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+    });
+
+    // Paginate
+    const start = vehicleFilters.page * vehicleFilters.size;
+    return filtered.slice(start, start + vehicleFilters.size);
+  }, [vehicles, vehicleFilters]);
+
+  const filteredRoutes = useMemo(() => {
+    let filtered = routes.filter(route => {
+      const matchesSearch = !routeFilters.search || 
+        route.source?.toLowerCase().includes(routeFilters.search.toLowerCase()) ||
+        route.destination?.toLowerCase().includes(routeFilters.search.toLowerCase());
+      return matchesSearch;
+    });
+
+    // Sort
+    filtered.sort((a, b) => {
+      let aVal, bVal;
+      if (routeFilters.sortBy === 'distanceKm') {
+        aVal = a[routeFilters.sortBy] || 0;
+        bVal = b[routeFilters.sortBy] || 0;
+        return routeFilters.sortOrder === 'asc' ? aVal - bVal : bVal - aVal;
+      } else {
+        aVal = a[routeFilters.sortBy]?.toString().toLowerCase() || '';
+        bVal = b[routeFilters.sortBy]?.toString().toLowerCase() || '';
+        return routeFilters.sortOrder === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+      }
+    });
+
+    // Paginate
+    const start = routeFilters.page * routeFilters.size;
+    return filtered.slice(start, start + routeFilters.size);
+  }, [routes, routeFilters]);
+
+  // Update pagination info when filtered data changes
+  useEffect(() => {
+    const userFiltered = users.filter(user => {
+      const matchesSearch = !userFilters.search || 
+        user.username?.toLowerCase().includes(userFilters.search.toLowerCase()) ||
+        user.email?.toLowerCase().includes(userFilters.search.toLowerCase());
+      const matchesRole = userFilters.role === 'all' || user.role === userFilters.role;
+      const matchesStatus = userFilters.status === 'all' || 
+        (userFilters.status === 'active' ? user.isActive : !user.isActive);
+      return matchesSearch && matchesRole && matchesStatus;
+    });
+    const totalElements = userFiltered.length;
+    const totalPages = Math.ceil(totalElements / userFilters.size);
+    setUserPagination({ totalPages, totalElements });
+  }, [users, userFilters]);
+
+  useEffect(() => {
+    const vehicleFiltered = vehicles.filter(vehicle => {
+      const matchesSearch = !vehicleFilters.search || 
+        vehicle.vehicleNumber?.toLowerCase().includes(vehicleFilters.search.toLowerCase()) ||
+        vehicle.operator?.toLowerCase().includes(vehicleFilters.search.toLowerCase());
+      const matchesOperator = vehicleFilters.operator === 'all' || vehicle.operator === vehicleFilters.operator;
+      const matchesType = vehicleFilters.type === 'all' || vehicle.vehicleType === vehicleFilters.type;
+      return matchesSearch && matchesOperator && matchesType;
+    });
+    const totalElements = vehicleFiltered.length;
+    const totalPages = Math.ceil(totalElements / vehicleFilters.size);
+    setVehiclePagination({ totalPages, totalElements });
+  }, [vehicles, vehicleFilters]);
+
+  useEffect(() => {
+    const routeFiltered = routes.filter(route => {
+      const matchesSearch = !routeFilters.search || 
+        route.source?.toLowerCase().includes(routeFilters.search.toLowerCase()) ||
+        route.destination?.toLowerCase().includes(routeFilters.search.toLowerCase());
+      return matchesSearch;
+    });
+    const totalElements = routeFiltered.length;
+    const totalPages = Math.ceil(totalElements / routeFilters.size);
+    setRoutePagination({ totalPages, totalElements });
+  }, [routes, routeFilters]);
 
   const fetchAdminData = async () => {
     setLoading(true);
@@ -852,7 +998,7 @@ const AdminDashboard = () => {
                 <div>
                   <h3 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>Fleet Management</h3>
                   <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'} mt-1`}>Manage vehicles and assign drivers</p>
-                  <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'} mt-1`}>Total: {vehicles.length} vehicles</p>
+                  <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'} mt-1`}>Total: {vehiclePagination.totalElements} vehicles</p>
                 </div>
                 <button
                   onClick={fetchAdminData}
@@ -860,6 +1006,52 @@ const AdminDashboard = () => {
                 >
                   Refresh Data
                 </button>
+              </div>
+            </div>
+            
+            {/* Vehicle Filters */}
+            <div className={`px-6 py-4 ${isDark ? 'bg-gray-700/50' : 'bg-gray-50'} border-b ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <input
+                  type="text"
+                  placeholder="Search vehicles..."
+                  value={vehicleFilters.search}
+                  onChange={(e) => setVehicleFilters({...vehicleFilters, search: e.target.value, page: 0})}
+                  className={`px-3 py-2 border rounded-md text-sm ${isDark ? 'bg-gray-800 border-gray-600 text-white' : 'border-gray-300'}`}
+                />
+                <select
+                  value={vehicleFilters.operator}
+                  onChange={(e) => setVehicleFilters({...vehicleFilters, operator: e.target.value, page: 0})}
+                  className={`px-3 py-2 border rounded-md text-sm ${isDark ? 'bg-gray-800 border-gray-600 text-white' : 'border-gray-300'}`}
+                >
+                  <option value="all">All Operators</option>
+                  {[...new Set(vehicles.map(v => v.operator).filter(Boolean))].map(op => (
+                    <option key={op} value={op}>{op}</option>
+                  ))}
+                </select>
+                <select
+                  value={vehicleFilters.type}
+                  onChange={(e) => setVehicleFilters({...vehicleFilters, type: e.target.value, page: 0})}
+                  className={`px-3 py-2 border rounded-md text-sm ${isDark ? 'bg-gray-800 border-gray-600 text-white' : 'border-gray-300'}`}
+                >
+                  <option value="all">All Types</option>
+                  {[...new Set(vehicles.map(v => v.vehicleType).filter(Boolean))].map(type => (
+                    <option key={type} value={type}>{type}</option>
+                  ))}
+                </select>
+                <select
+                  value={`${vehicleFilters.sortBy}-${vehicleFilters.sortOrder}`}
+                  onChange={(e) => {
+                    const [sortBy, sortOrder] = e.target.value.split('-');
+                    setVehicleFilters({...vehicleFilters, sortBy, sortOrder});
+                  }}
+                  className={`px-3 py-2 border rounded-md text-sm ${isDark ? 'bg-gray-800 border-gray-600 text-white' : 'border-gray-300'}`}
+                >
+                  <option value="vehicleNumber-asc">Vehicle Number A-Z</option>
+                  <option value="vehicleNumber-desc">Vehicle Number Z-A</option>
+                  <option value="operator-asc">Operator A-Z</option>
+                  <option value="vehicleType-asc">Type A-Z</option>
+                </select>
               </div>
             </div>
             <div className="p-6">
@@ -885,7 +1077,7 @@ const AdminDashboard = () => {
                     </tr>
                   </thead>
                   <tbody className={`${isDark ? 'bg-gray-800' : 'bg-white'} divide-y ${isDark ? 'divide-gray-700' : 'divide-gray-200'}`}>
-                    {vehicles.length === 0 ? (
+                    {filteredVehicles.length === 0 ? (
                       <tr>
                         <td colSpan="5" className={`px-6 py-12 text-center ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
                           <div className="flex flex-col items-center">
@@ -898,7 +1090,7 @@ const AdminDashboard = () => {
                         </td>
                       </tr>
                     ) : (
-                      vehicles.map((vehicle) => (
+                      filteredVehicles.map((vehicle) => (
                         <tr key={vehicle.id} className={`hover:${isDark ? 'bg-gray-700' : 'bg-gray-50'} transition-colors`}>
                           <td className="px-6 py-4">
                             <div className="flex items-center">
@@ -1067,6 +1259,44 @@ const AdminDashboard = () => {
                   </tbody>
                 </table>
               </div>
+              
+              {/* Vehicle Pagination */}
+              {vehiclePagination.totalPages > 1 && (
+                <div className="flex items-center justify-between mt-6">
+                  <div className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-700'}`}>
+                    Showing {vehicleFilters.page * vehicleFilters.size + 1} to {Math.min((vehicleFilters.page + 1) * vehicleFilters.size, vehiclePagination.totalElements)} of {vehiclePagination.totalElements} results
+                  </div>
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={() => setVehicleFilters({...vehicleFilters, page: vehicleFilters.page - 1})}
+                      disabled={vehicleFilters.page === 0}
+                      className={`px-3 py-1 border rounded text-sm disabled:opacity-50 ${isDark ? 'border-gray-600 text-gray-300' : 'border-gray-300'}`}
+                    >
+                      Previous
+                    </button>
+                    {[...Array(vehiclePagination.totalPages)].map((_, i) => (
+                      <button
+                        key={i}
+                        onClick={() => setVehicleFilters({...vehicleFilters, page: i})}
+                        className={`px-3 py-1 border rounded text-sm ${
+                          vehicleFilters.page === i 
+                            ? 'bg-blue-500 text-white border-blue-500' 
+                            : isDark ? 'border-gray-600 text-gray-300' : 'border-gray-300'
+                        }`}
+                      >
+                        {i + 1}
+                      </button>
+                    ))}
+                    <button
+                      onClick={() => setVehicleFilters({...vehicleFilters, page: vehicleFilters.page + 1})}
+                      disabled={vehicleFilters.page >= vehiclePagination.totalPages - 1}
+                      className={`px-3 py-1 border rounded text-sm disabled:opacity-50 ${isDark ? 'border-gray-600 text-gray-300' : 'border-gray-300'}`}
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -1079,6 +1309,7 @@ const AdminDashboard = () => {
                 <div>
                   <h3 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>Routes Management</h3>
                   <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'} mt-1`}>Manage bus routes and destinations</p>
+                  <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'} mt-1`}>Total: {routePagination.totalElements} routes</p>
                 </div>
                 <button
                   onClick={() => setShowRouteForm(true)}
@@ -1086,6 +1317,37 @@ const AdminDashboard = () => {
                 >
                   Add Route
                 </button>
+              </div>
+            </div>
+            
+            {/* Route Filters */}
+            <div className={`px-6 py-4 ${isDark ? 'bg-gray-700/50' : 'bg-gray-50'} border-b ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <input
+                  type="text"
+                  placeholder="Search routes..."
+                  value={routeFilters.search}
+                  onChange={(e) => setRouteFilters({...routeFilters, search: e.target.value, page: 0})}
+                  className={`px-3 py-2 border rounded-md text-sm ${isDark ? 'bg-gray-800 border-gray-600 text-white' : 'border-gray-300'}`}
+                />
+                <select
+                  value={`${routeFilters.sortBy}-${routeFilters.sortOrder}`}
+                  onChange={(e) => {
+                    const [sortBy, sortOrder] = e.target.value.split('-');
+                    setRouteFilters({...routeFilters, sortBy, sortOrder});
+                  }}
+                  className={`px-3 py-2 border rounded-md text-sm ${isDark ? 'bg-gray-800 border-gray-600 text-white' : 'border-gray-300'}`}
+                >
+                  <option value="source-asc">Source A-Z</option>
+                  <option value="source-desc">Source Z-A</option>
+                  <option value="destination-asc">Destination A-Z</option>
+                  <option value="destination-desc">Destination Z-A</option>
+                  <option value="distanceKm-asc">Distance (Low to High)</option>
+                  <option value="distanceKm-desc">Distance (High to Low)</option>
+                </select>
+                <div className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'} flex items-center`}>
+                  Showing {routeFilters.page * routeFilters.size + 1} to {Math.min((routeFilters.page + 1) * routeFilters.size, routePagination.totalElements)} of {routePagination.totalElements}
+                </div>
               </div>
             </div>
             <div className="p-6">
@@ -1100,7 +1362,7 @@ const AdminDashboard = () => {
                     </tr>
                   </thead>
                   <tbody className={`${isDark ? 'bg-gray-800' : 'bg-white'} divide-y ${isDark ? 'divide-gray-700' : 'divide-gray-200'}`}>
-                    {routes.length === 0 ? (
+                    {filteredRoutes.length === 0 ? (
                       <tr>
                         <td colSpan="4" className={`px-6 py-12 text-center ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
                           <div className="flex flex-col items-center">
@@ -1113,7 +1375,7 @@ const AdminDashboard = () => {
                         </td>
                       </tr>
                     ) : (
-                      routes.map((route) => (
+                      filteredRoutes.map((route) => (
                         <tr key={route.id} className={`hover:${isDark ? 'bg-gray-700' : 'bg-gray-50'} transition-colors`}>
                           <td className="px-6 py-4">
                             <div className="flex items-center">
@@ -1150,6 +1412,44 @@ const AdminDashboard = () => {
                   </tbody>
                 </table>
               </div>
+              
+              {/* Routes Pagination */}
+              {routePagination.totalPages > 1 && (
+                <div className="flex items-center justify-between mt-6 px-6 pb-6">
+                  <div className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-700'}`}>
+                    Showing {routeFilters.page * routeFilters.size + 1} to {Math.min((routeFilters.page + 1) * routeFilters.size, routePagination.totalElements)} of {routePagination.totalElements} results
+                  </div>
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={() => setRouteFilters({...routeFilters, page: routeFilters.page - 1})}
+                      disabled={routeFilters.page === 0}
+                      className={`px-3 py-1 border rounded text-sm disabled:opacity-50 ${isDark ? 'border-gray-600 text-gray-300' : 'border-gray-300'}`}
+                    >
+                      Previous
+                    </button>
+                    {[...Array(routePagination.totalPages)].map((_, i) => (
+                      <button
+                        key={i}
+                        onClick={() => setRouteFilters({...routeFilters, page: i})}
+                        className={`px-3 py-1 border rounded text-sm ${
+                          routeFilters.page === i 
+                            ? 'bg-blue-500 text-white border-blue-500' 
+                            : isDark ? 'border-gray-600 text-gray-300' : 'border-gray-300'
+                        }`}
+                      >
+                        {i + 1}
+                      </button>
+                    ))}
+                    <button
+                      onClick={() => setRouteFilters({...routeFilters, page: routeFilters.page + 1})}
+                      disabled={routeFilters.page >= routePagination.totalPages - 1}
+                      className={`px-3 py-1 border rounded text-sm disabled:opacity-50 ${isDark ? 'border-gray-600 text-gray-300' : 'border-gray-300'}`}
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -1343,18 +1643,71 @@ const AdminDashboard = () => {
         {activeTab === 'users' && (
           <div className="bg-white rounded-lg shadow-sm">
             <div className="px-6 py-4 border-b border-gray-200">
-              <h3 className="text-lg font-medium text-gray-900">User Management</h3>
+              <div className="flex justify-between items-center">
+                <h3 className="text-lg font-medium text-gray-900">User Management</h3>
+                <div className="text-sm text-gray-500">
+                  {userPagination.totalElements} total users
+                </div>
+              </div>
             </div>
+            
+            {/* Filters */}
+            <div className="px-6 py-4 bg-gray-50 border-b">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <input
+                  type="text"
+                  placeholder="Search users..."
+                  value={userFilters.search}
+                  onChange={(e) => setUserFilters({...userFilters, search: e.target.value, page: 0})}
+                  className="px-3 py-2 border border-gray-300 rounded-md text-sm"
+                />
+                <select
+                  value={userFilters.role}
+                  onChange={(e) => setUserFilters({...userFilters, role: e.target.value, page: 0})}
+                  className="px-3 py-2 border border-gray-300 rounded-md text-sm"
+                >
+                  <option value="all">All Roles</option>
+                  <option value="PASSENGER">Passenger</option>
+                  <option value="DRIVER">Driver</option>
+                  <option value="ADMIN">Admin</option>
+                </select>
+                <select
+                  value={userFilters.status}
+                  onChange={(e) => setUserFilters({...userFilters, status: e.target.value, page: 0})}
+                  className="px-3 py-2 border border-gray-300 rounded-md text-sm"
+                >
+                  <option value="all">All Status</option>
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                </select>
+                <select
+                  value={`${userFilters.sortBy}-${userFilters.sortOrder}`}
+                  onChange={(e) => {
+                    const [sortBy, sortOrder] = e.target.value.split('-');
+                    setUserFilters({...userFilters, sortBy, sortOrder});
+                  }}
+                  className="px-3 py-2 border border-gray-300 rounded-md text-sm"
+                >
+                  <option value="username-asc">Username A-Z</option>
+                  <option value="username-desc">Username Z-A</option>
+                  <option value="email-asc">Email A-Z</option>
+                  <option value="role-asc">Role A-Z</option>
+                </select>
+              </div>
+            </div>
+            
             <div className="p-6">
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Username
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                          onClick={() => setUserFilters({...userFilters, sortBy: 'username', sortOrder: userFilters.sortOrder === 'asc' ? 'desc' : 'asc'})}>
+                        Username {userFilters.sortBy === 'username' && (userFilters.sortOrder === 'asc' ? '↑' : '↓')}
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Email
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                          onClick={() => setUserFilters({...userFilters, sortBy: 'email', sortOrder: userFilters.sortOrder === 'asc' ? 'desc' : 'asc'})}>
+                        Email {userFilters.sortBy === 'email' && (userFilters.sortOrder === 'asc' ? '↑' : '↓')}
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Role
@@ -1368,7 +1721,7 @@ const AdminDashboard = () => {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {users.map((user) => (
+                    {filteredUsers.map((user) => (
                       <tr key={user.id}>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                           {user.username}
@@ -1409,6 +1762,42 @@ const AdminDashboard = () => {
                   </tbody>
                 </table>
               </div>
+              
+              {/* Pagination */}
+              {userPagination.totalPages > 1 && (
+                <div className="flex items-center justify-between mt-6">
+                  <div className="text-sm text-gray-700">
+                    Showing {userFilters.page * userFilters.size + 1} to {Math.min((userFilters.page + 1) * userFilters.size, userPagination.totalElements)} of {userPagination.totalElements} results
+                  </div>
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={() => setUserFilters({...userFilters, page: userFilters.page - 1})}
+                      disabled={userFilters.page === 0}
+                      className="px-3 py-1 border border-gray-300 rounded text-sm disabled:opacity-50"
+                    >
+                      Previous
+                    </button>
+                    {[...Array(userPagination.totalPages)].map((_, i) => (
+                      <button
+                        key={i}
+                        onClick={() => setUserFilters({...userFilters, page: i})}
+                        className={`px-3 py-1 border rounded text-sm ${
+                          userFilters.page === i ? 'bg-blue-500 text-white border-blue-500' : 'border-gray-300'
+                        }`}
+                      >
+                        {i + 1}
+                      </button>
+                    ))}
+                    <button
+                      onClick={() => setUserFilters({...userFilters, page: userFilters.page + 1})}
+                      disabled={userFilters.page >= userPagination.totalPages - 1}
+                      className="px-3 py-1 border border-gray-300 rounded text-sm disabled:opacity-50"
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}

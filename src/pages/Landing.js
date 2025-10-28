@@ -41,6 +41,7 @@ const Landing = () => {
   const [selectedSeats, setSelectedSeats] = useState([]);
   const [bookingSummary, setBookingSummary] = useState(null);
   const [showDashboard, setShowDashboard] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Create separate refs instead of an object
   const fromRef = useRef(null);
@@ -936,14 +937,96 @@ const Landing = () => {
 
             {/* Mobile Menu Button */}
             <div className="md:hidden">
-              <button className="text-white hover:text-brand-primary transition-colors duration-300">
+              <button 
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className="text-white hover:text-brand-primary transition-colors duration-300"
+              >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={mobileMenuOpen ? "M6 18L18 6M6 6l12 12" : "M4 6h16M4 12h16M4 18h16"} />
                 </svg>
               </button>
             </div>
           </div>
         </div>
+        
+        {/* Mobile Menu */}
+        {mobileMenuOpen && (
+          <div className="md:hidden bg-white/10 backdrop-blur-lg border-t border-white/20">
+            <div className="px-4 py-4 space-y-4">
+              <Link 
+                to="/" 
+                className="block text-white hover:text-brand-primary transition-colors duration-300 font-semibold"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Home
+              </Link>
+              <button 
+                onClick={() => {
+                  const section = document.getElementById('offers');
+                  if (section) section.scrollIntoView({ behavior: 'smooth' });
+                  setMobileMenuOpen(false);
+                }}
+                className="block text-white hover:text-brand-primary transition-colors duration-300 font-semibold text-left w-full"
+              >
+                Offers
+              </button>
+              <button 
+                onClick={() => {
+                  const section = document.getElementById('features');
+                  if (section) section.scrollIntoView({ behavior: 'smooth' });
+                  setMobileMenuOpen(false);
+                }}
+                className="block text-white hover:text-brand-primary transition-colors duration-300 font-semibold text-left w-full"
+              >
+                Features
+              </button>
+              <Link 
+                to="/routes" 
+                className="block text-white hover:text-brand-primary transition-colors duration-300 font-semibold"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Routes
+              </Link>
+              
+              {!isAuthenticated() ? (
+                <div className="space-y-3 pt-4 border-t border-white/20">
+                  <Link 
+                    to="/register" 
+                    className="block bg-brand-primary text-white px-4 py-2 rounded-lg font-semibold hover:opacity-90 transition-all duration-300 text-center"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    Get Started
+                  </Link>
+                  <Link 
+                    to="/login" 
+                    className="block text-white hover:text-brand-primary transition-colors duration-300 font-semibold text-center"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    Login
+                  </Link>
+                </div>
+              ) : (
+                <div className="pt-4 border-t border-white/20">
+                  <button
+                    onClick={() => {
+                      navigate(user?.role === 'ADMIN' ? '/admin/dashboard' : user?.role === 'DRIVER' ? '/driver/dashboard' : '/user/dashboard');
+                      setMobileMenuOpen(false);
+                    }}
+                    className="flex items-center space-x-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg px-3 py-2 hover:bg-white/20 transition-all duration-300 w-full"
+                  >
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm ${
+                      user?.role === 'ADMIN' ? 'bg-red-600' : 
+                      user?.role === 'DRIVER' ? 'bg-green-600' : 'bg-blue-600'
+                    }`}>
+                      {user?.username?.charAt(0).toUpperCase()}
+                    </div>
+                    <span className="text-white font-semibold">{user?.username}</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </nav>
 
       {/* Main Content */}
